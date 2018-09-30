@@ -180,7 +180,7 @@ public class LibraryOrm implements ILibrary {
 	@Override
 	public List<BookDto> removeAuthor(String authorName) {
 		// TODO Auto-generated method stub
-		Author author=authorsRepository.findById(authorName).orElse(null);
+//		Author author=authorsRepository.findById(authorName).orElse(null);
 		return null;
 	}
 
