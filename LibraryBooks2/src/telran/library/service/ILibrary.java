@@ -3,7 +3,11 @@ package telran.library.service;
 import java.time.LocalDate;
 import java.util.List;
 
-import telran.library.dto.*;
+import telran.library.dto.AuthorDto;
+import telran.library.dto.BookDto;
+import telran.library.dto.LibraryReturnCode;
+import telran.library.dto.ReaderDto;
+import telran.library.dto.RecordDto;
 
 public interface ILibrary {
 	LibraryReturnCode addAuthor(AuthorDto author);
@@ -29,4 +33,8 @@ public interface ILibrary {
 																// years range
 
 	List<ReaderDto> getMostActiveReaders();
+
+	List<RecordDto> getAllRecords();
+
+	List<BookDto> getAllBooks();
 }

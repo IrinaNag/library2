@@ -4,6 +4,8 @@ import java.time.LocalDate;
 
 import javax.persistence.*;
 
+import lombok.ToString;
+
 @Table(name = "records")
 @Entity
 public class Record {

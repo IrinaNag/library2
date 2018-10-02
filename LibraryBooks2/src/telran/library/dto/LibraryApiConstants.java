@@ -9,6 +9,7 @@ public interface LibraryApiConstants {
 	String GET_READERS_DELAYING = "/readers/delaying/get";
 	String GET_BOOK_AUTHORS = "/authors/book/get";
 	String GET_AUTHOR_BOOKS = "/books/author/get";
+	String DELETE_AUTHOR = "/author/delete";
 	String ISBN = "isbn";
 	String AUTHOR_NAME = "author";
 }

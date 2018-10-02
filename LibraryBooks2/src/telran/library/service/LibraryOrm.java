@@ -18,6 +18,7 @@ import telran.library.dto.AuthorDto;
 import telran.library.dto.BookDto;
 import telran.library.dto.LibraryReturnCode;
 import telran.library.dto.ReaderDto;
+import telran.library.dto.RecordDto;
 import telran.library.entities.Author;
 import telran.library.entities.Book;
 import telran.library.entities.Reader;
@@ -46,7 +47,6 @@ public class LibraryOrm implements ILibrary {
 	@Override
 	@Transactional
 	public LibraryReturnCode addBook(BookDto book) {
-		// TODO To add the book to the authors
 		if (booksRepository.existsById(book.getIsbn()))
 			return LibraryReturnCode.BOOK_ALREADY_EXISTS;
 		List<Author> authors = new ArrayList<>();
@@ -59,24 +59,12 @@ public class LibraryOrm implements ILibrary {
 		Book bookForSave = new Book(book.getIsbn(), book.getAmount(), book.getTitle(), book.getCover(),
 				book.getPickPeriod(), authors);
 		booksRepository.save(bookForSave);
-
-		/*
-		 * for (Author author : authors) {
-		 *  List<Book> books = author.getBooks();
-		 *  if(books == null)
-		 *    	books = new ArrayList<>();
-		 *  books.add(bookForSave);
-		 * 	author.setBooks(books);
-		 *  authorsRepositiry.save(author);
-		 *  }
-		 */
 		return LibraryReturnCode.OK;
 	}
 
 	@Override
 	@Transactional
 	public LibraryReturnCode pickBook(int readerId, long isbn, LocalDate pickDate) {
-		// TODO To add the record to the book and to the reader
 		Reader reader = readersRepository.findById(readerId).orElse(null);
 		if (reader == null)
 			return LibraryReturnCode.NO_READER;
@@ -116,20 +104,20 @@ public class LibraryOrm implements ILibrary {
 
 	@Override
 	public List<ReaderDto> getReadersDelayingBooks() {
-		// TODO Auto-generated method stub
 		List<ReaderDto> readers = new ArrayList<>();
-		for (Book book : booksRepository.findAll()) {
-			List<Record> records = book.getRecords();
-			if (!records.isEmpty()) {
-				int number = records.size();
-				Record record = records.get(number - 1);
-				if (record.getReturnDate() == null) {
-					Reader reader = record.getReader();
-					readers.add(new ReaderDto(reader.getId(), reader.getName(), reader.getYear(), reader.getPhone()));
+		for (Reader reader : readersRepository.findAll()) {
+			for (Record record : reader.getRecords()) {
+				if(record.getReturnDate()==null) {
+					readers.add(mapFromReaderToReaderDto(reader));
+					break;
 				}
 			}
 		}
 		return readers;
+	}
+
+	private ReaderDto mapFromReaderToReaderDto(Reader reader) {
+		return new ReaderDto(reader.getId(), reader.getName(), reader.getYear(), reader.getPhone());
 	}
 
 	@Override
@@ -178,10 +166,39 @@ public class LibraryOrm implements ILibrary {
 	}
 
 	@Override
+	@Transactional
 	public List<BookDto> removeAuthor(String authorName) {
-		// TODO Auto-generated method stub
-//		Author author=authorsRepository.findById(authorName).orElse(null);
-		return null;
+		Author author=authorsRepository.findById(authorName).orElse(null);
+		if(author==null)
+			return null;
+		List<BookDto>books=new ArrayList<>();
+		for (Book book : author.getBooks()) {
+			for (Record record : book.getRecords()) {
+				recordsRepository.delete(record);
+			}
+			booksRepository.delete(book);
+			books.add(mapFromBookToBookDto(book));
+		}
+		return books;
+	}
+
+	@Override
+	public List<RecordDto> getAllRecords() {
+		List<RecordDto>records=new ArrayList<>();
+		for (Record record : recordsRepository.findAll()) {
+			records.add(new RecordDto(record.getPickDate(), record.getReturnDate()					, record.getDelayDays()
+					, record.getBook().getIsbn(), record.getReader().getId()));
+		}
+		return records;
+	}
+
+	@Override
+	public List<BookDto> getAllBooks() {
+		List<BookDto>books=new ArrayList<>();
+		for (Book book : booksRepository.findAll()) {
+			books.add(mapFromBookToBookDto(book));
+		}
+		return books;
 	}
 
 }
