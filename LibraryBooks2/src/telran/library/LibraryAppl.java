@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class LibraryAppl {
-public static void main(String[] args) {
-	SpringApplication.run(LibraryAppl.class, args);
-}
+	public static void main(String[] args) {
+		SpringApplication.run(LibraryAppl.class, args);
+	}
 }
