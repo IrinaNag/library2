@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
 
@@ -38,16 +39,18 @@ public class LibraryOrm implements ILibrary {
 	@Override
 	@Transactional
 	public LibraryReturnCode addAuthor(AuthorDto author) {
-		if (authorsRepository.existsById(author.getName()))
+		String authorName = author.getName();
+		if (authorsRepository.existsById(authorName))
 			return LibraryReturnCode.AUTHOR_ALREADY_EXISTS;
-		authorsRepository.save(new Author(author.getName(), author.getCountry()));
+		authorsRepository.save(new Author(authorName, author.getCountry()));
 		return LibraryReturnCode.OK;
 	}
 
 	@Override
 	@Transactional
 	public LibraryReturnCode addBook(BookDto book) {
-		if (booksRepository.existsById(book.getIsbn()))
+		long bookIsbn = book.getIsbn();
+		if (booksRepository.existsById(bookIsbn))
 			return LibraryReturnCode.BOOK_ALREADY_EXISTS;
 		List<Author> authors = new ArrayList<>();
 		for (String authorName : book.getAuthorNames()) {
@@ -56,8 +59,8 @@ public class LibraryOrm implements ILibrary {
 				return LibraryReturnCode.NO_AUTHOR;
 			authors.add(author);
 		}
-		Book bookForSave = new Book(book.getIsbn(), book.getAmount(), book.getTitle(), book.getCover(),
-				book.getPickPeriod(), authors);
+		Book bookForSave = new Book(bookIsbn, book.getAmount(), book.getTitle(), book.getCover(), book.getPickPeriod(),
+				authors);
 		booksRepository.save(bookForSave);
 		return LibraryReturnCode.OK;
 	}
@@ -68,9 +71,15 @@ public class LibraryOrm implements ILibrary {
 		Reader reader = readersRepository.findById(readerId).orElse(null);
 		if (reader == null)
 			return LibraryReturnCode.NO_READER;
+		for (Record record : reader.getRecords()) {
+			if (record.getReturnDate() == null)
+				return LibraryReturnCode.READER_NO_RETURNED_BOOK;
+		}
 		Book book = booksRepository.findById(isbn).orElse(null);
 		if (book == null)
 			return LibraryReturnCode.NO_BOOK;
+		if (recordsRepository.countByBookAndReturnDateNull(book) == book.getAmount())
+			return LibraryReturnCode.ALL_BOOKS_IN_USE;
 		recordsRepository.save(new Record(pickDate, book, reader));
 		return LibraryReturnCode.OK;
 	}
@@ -94,6 +103,10 @@ public class LibraryOrm implements ILibrary {
 		if (book == null)
 			return LibraryReturnCode.NO_BOOK;
 		Record record = recordsRepository.findByBookAndReaderAndReturnDateNull(book, reader);
+		if (record == null)
+			return LibraryReturnCode.NO_RECORD_FOR_RETURN;
+		if (returnDate.isBefore(record.getPickDate()))
+			return LibraryReturnCode.WRONG_RETURN_DATE;
 		LocalDate mustReturnDate = record.getPickDate().plusDays(book.getPickPeriod());
 		ChronoUnit chronoUnit = ChronoUnit.DAYS;
 		int delayDays = (int) (returnDate.isAfter(mustReturnDate) ? chronoUnit.between(mustReturnDate, returnDate) : 0);
@@ -107,7 +120,8 @@ public class LibraryOrm implements ILibrary {
 		List<ReaderDto> readers = new ArrayList<>();
 		for (Reader reader : readersRepository.findAll()) {
 			for (Record record : reader.getRecords()) {
-				if(record.getReturnDate()==null) {
+				if (record.getReturnDate() == null
+						&& LocalDate.now().isAfter(record.getPickDate().plusDays(record.getBook().getPickPeriod()))) {
 					readers.add(mapFromReaderToReaderDto(reader));
 					break;
 				}
@@ -155,23 +169,27 @@ public class LibraryOrm implements ILibrary {
 
 	@Override
 	public List<BookDto> getMostPopularBooks(int yearFrom, int yearTo) {
-		// Not Implemented
-		return null;
+		long maxRecords=recordsRepository.getMaxRecords(yearFrom, yearTo);
+		List<Long>mostPopularBooksIsbn=recordsRepository.getMostPopularBooks(yearFrom, yearTo, maxRecords);
+		return mostPopularBooksIsbn.stream().map(x->booksRepository.getOne(x))
+				.map(x->mapFromBookToBookDto(x)).collect(Collectors.toList());
 	}
 
 	@Override
 	public List<ReaderDto> getMostActiveReaders() {
-		// Not Implemented
-		return null;
+		long maxRecords=recordsRepository.getMaxRecords();
+		List<Integer>mostActiveReaders=recordsRepository.getMostActiveReaders(maxRecords);
+		return mostActiveReaders.stream().map(x->readersRepository.getOne(x)).map(x->mapFromReaderToReaderDto(x))
+				.collect(Collectors.toList());
 	}
 
 	@Override
 	@Transactional
 	public List<BookDto> removeAuthor(String authorName) {
-		Author author=authorsRepository.findById(authorName).orElse(null);
-		if(author==null)
+		Author author = authorsRepository.findById(authorName).orElse(null);
+		if (author == null)
 			return null;
-		List<BookDto>books=new ArrayList<>();
+		List<BookDto> books = new ArrayList<>();
 		for (Book book : author.getBooks()) {
 			for (Record record : book.getRecords()) {
 				recordsRepository.delete(record);
@@ -184,17 +202,17 @@ public class LibraryOrm implements ILibrary {
 
 	@Override
 	public List<RecordDto> getAllRecords() {
-		List<RecordDto>records=new ArrayList<>();
+		List<RecordDto> records = new ArrayList<>();
 		for (Record record : recordsRepository.findAll()) {
-			records.add(new RecordDto(record.getPickDate(), record.getReturnDate()					, record.getDelayDays()
-					, record.getBook().getIsbn(), record.getReader().getId()));
+			records.add(new RecordDto(record.getPickDate(), record.getReturnDate(), record.getDelayDays(),
+					record.getBook().getIsbn(), record.getReader().getId()));
 		}
 		return records;
 	}
 
 	@Override
 	public List<BookDto> getAllBooks() {
-		List<BookDto>books=new ArrayList<>();
+		List<BookDto> books = new ArrayList<>();
 		for (Book book : booksRepository.findAll()) {
 			books.add(mapFromBookToBookDto(book));
 		}

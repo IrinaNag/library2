@@ -80,6 +80,16 @@ public class LibraryController {
 		return library.getAuthorBooks(authorName);
 	}
 	
+	@GetMapping(value=LibraryApiConstants.GET_MOST_POPULAR_BOOKS)
+	public List<BookDto> getMostPopularBooks(@RequestParam int yearFrom, @RequestParam int yearTo) {
+		return library.getMostPopularBooks(yearFrom, yearTo);
+	}
+	
+	@GetMapping(value=LibraryApiConstants.GET_MOST_ACTIVE_READERS)
+	public List<ReaderDto> getMostActiveReaders(){
+		return library.getMostActiveReaders();
+	}
+	
 	@DeleteMapping(value = LibraryApiConstants.DELETE_AUTHOR)
 		public List<BookDto> removeAuthor(@RequestParam String authorName){
 			return library.removeAuthor(authorName);

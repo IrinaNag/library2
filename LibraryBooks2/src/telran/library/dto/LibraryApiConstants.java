@@ -10,6 +10,8 @@ public interface LibraryApiConstants {
 	String GET_BOOK_AUTHORS = "/authors/book/get";
 	String GET_AUTHOR_BOOKS = "/books/author/get";
 	String DELETE_AUTHOR = "/author/delete";
+	String GET_MOST_POPULAR_BOOKS="/books/popular/get";
+	String GET_MOST_ACTIVE_READERS="/readers/active/get";
 	String ISBN = "isbn";
 	String AUTHOR_NAME = "author";
 }
