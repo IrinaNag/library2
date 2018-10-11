@@ -9,6 +9,9 @@ import java.util.stream.Collectors;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jmx.export.annotation.ManagedAttribute;
+import org.springframework.jmx.export.annotation.ManagedResource;
 import org.springframework.stereotype.Service;
 
 import telran.library.dao.AuthorsRepository;
@@ -25,6 +28,7 @@ import telran.library.entities.Book;
 import telran.library.entities.Reader;
 import telran.library.entities.Record;
 
+@ManagedResource
 @Service
 public class LibraryOrm implements ILibrary {
 	@Autowired
@@ -35,6 +39,18 @@ public class LibraryOrm implements ILibrary {
 	ReadersRepository readersRepository;
 	@Autowired
 	AuthorsRepository authorsRepository;
+	@Value("${value.delayPercent:10}")
+	int delayPercent;
+
+	@ManagedAttribute
+	public int getDelayPercent() {
+		return delayPercent;
+	}
+
+	@ManagedAttribute
+	public void setDelayPercent(int delayPercent) {
+		this.delayPercent = delayPercent;
+	}
 
 	@Override
 	@Transactional
@@ -120,13 +136,15 @@ public class LibraryOrm implements ILibrary {
 		List<ReaderDto> readers = new ArrayList<>();
 		for (Reader reader : readersRepository.findAll()) {
 			for (Record record : reader.getRecords()) {
+				int pickPeriod=record.getBook().getPickPeriod();
 				if (record.getReturnDate() == null
-						&& LocalDate.now().isAfter(record.getPickDate().plusDays(record.getBook().getPickPeriod()))) {
+						&& LocalDate.now().isAfter(record.getPickDate().plusDays(pickPeriod+pickPeriod*delayPercent/100))) {
 					readers.add(mapFromReaderToReaderDto(reader));
 					break;
 				}
 			}
 		}
+		readers.forEach(System.out::println);
 		return readers;
 	}
 
@@ -169,17 +187,17 @@ public class LibraryOrm implements ILibrary {
 
 	@Override
 	public List<BookDto> getMostPopularBooks(int yearFrom, int yearTo) {
-		long maxRecords=recordsRepository.getMaxRecords(yearFrom, yearTo);
-		List<Long>mostPopularBooksIsbn=recordsRepository.getMostPopularBooks(yearFrom, yearTo, maxRecords);
-		return mostPopularBooksIsbn.stream().map(x->booksRepository.getOne(x))
-				.map(x->mapFromBookToBookDto(x)).collect(Collectors.toList());
+		long maxRecords = recordsRepository.getMaxRecords(yearFrom, yearTo);
+		List<Long> mostPopularBooksIsbn = recordsRepository.getMostPopularBooks(yearFrom, yearTo, maxRecords);
+		return mostPopularBooksIsbn.stream().map(x -> booksRepository.getOne(x)).map(x -> mapFromBookToBookDto(x))
+				.collect(Collectors.toList());
 	}
 
 	@Override
 	public List<ReaderDto> getMostActiveReaders() {
-		long maxRecords=recordsRepository.getMaxRecords();
-		List<Integer>mostActiveReaders=recordsRepository.getMostActiveReaders(maxRecords);
-		return mostActiveReaders.stream().map(x->readersRepository.getOne(x)).map(x->mapFromReaderToReaderDto(x))
+		long maxRecords = recordsRepository.getMaxRecords();
+		List<Integer> mostActiveReaders = recordsRepository.getMostActiveReaders(maxRecords);
+		return mostActiveReaders.stream().map(x -> readersRepository.getOne(x)).map(x -> mapFromReaderToReaderDto(x))
 				.collect(Collectors.toList());
 	}
 
